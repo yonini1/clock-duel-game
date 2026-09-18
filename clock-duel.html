@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дуэль часов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1a24;
+    --dial: #f6ede0;
+    --brass: #c9a15a;
+    --brass-dim: #8a7148;
+    --red: #c0463c;
+    --red-deep: #7a2b24;
+    --blue: #2f6690;
+    --blue-deep: #1c405a;
+    --text-on-dark: #f3ece0;
+    --text-dim: #a8a2b3;
+    --page-bg: var(--ink);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Fraunces', Georgia, serif;
+    background: var(--page-bg);
+    color: var(--text-on-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+    transition: background-color 0.5s ease;
+    min-height: 100vh;
+  }
+  body.turn-red { background: linear-gradient(180deg, var(--red-deep), var(--red)); }
+  body.turn-blue { background: linear-gradient(180deg, var(--blue-deep), var(--blue)); }
+
+  .wrap { width: 100%; max-width: 420px; }
+
+  header { text-align: center; margin-bottom: 18px; }
+  header h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+    color: var(--text-on-dark);
+  }
+  header p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  body.turn-red header p, body.turn-blue header p { color: rgba(255,255,255,0.75); }
+
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  body.turn-red .status-row, body.turn-blue .status-row { color: rgba(255,255,255,0.8); }
+
+  .timer { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; }
+
+  .clock-shell {
+    background: rgba(0,0,0,0.18);
+    border-radius: 24px;
+    padding: 28px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  svg#clock { width: 100%; max-width: 280px; height: auto; }
+  .dial-face { fill: var(--dial); }
+  .tick { stroke: var(--brass-dim); stroke-width: 2; }
+  .tick-major { stroke: var(--brass); stroke-width: 3; }
+  .num { font-family: 'Fraunces', Georgia, serif; font-weight: 600; fill: var(--ink); }
+  .hand { stroke: var(--ink); stroke-width: 6; stroke-linecap: round; transition: transform 0.35s cubic-bezier(.4,1.4,.6,1); transform-origin: 140px 140px; }
+  .pin { fill: var(--brass); }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; }
+  button.rotate {
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 2px solid var(--brass); background: transparent; color: var(--brass);
+    font-size: 22px; line-height: 1; cursor: pointer;
+  }
+  button.rotate:active { background: rgba(201,161,90,0.2); }
+  button.rotate:disabled { opacity: 0.35; cursor: default; }
+
+  button.confirm {
+    flex: 1; max-width: 220px; height: 50px; border-radius: 25px; border: none;
+    background: var(--brass); color: var(--ink);
+    font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px;
+    letter-spacing: 0.05em; text-transform: lowercase; cursor: pointer;
+  }
+  button.confirm:active { transform: scale(0.97); }
+  button.confirm:disabled { opacity: 0.35; cursor: default; }
+
+  .overlay {
+    margin-top: 14px; text-align: center;
+    background: rgba(0,0,0,0.2); border-radius: 18px; padding: 30px 22px;
+  }
+  .overlay h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 19px; margin: 0 0 10px; }
+  .overlay p {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;
+    color: var(--text-dim); margin: 0 0 18px;
+  }
+  body.turn-red .overlay p, body.turn-blue .overlay p { color: rgba(255,255,255,0.85); }
+
+  .pill {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .pill.red { background: var(--red); color: #fff; }
+  .pill.blue { background: var(--blue); color: #fff; }
+  .pill.draw { background: var(--brass); color: var(--ink); }
+
+  button.big {
+    height: 50px; padding: 0 28px; border-radius: 25px;
+    border: 2px solid var(--brass); background: transparent; color: var(--text-on-dark);
+    font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  body.turn-red button.big, body.turn-blue button.big { color: #fff; border-color: rgba(255,255,255,0.7); }
+
+  input.text-input {
+    width: 100%; height: 46px; border-radius: 14px;
+    border: 1px solid rgba(201,161,90,0.4); background: rgba(0,0,0,0.2);
+    color: var(--text-on-dark); font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    padding: 0 14px; margin-bottom: 12px;
+  }
+  input.text-input::placeholder { color: var(--text-dim); }
+
+  .code-display {
+    font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 600;
+    letter-spacing: 0.15em; color: var(--brass); margin: 6px 0 16px;
+  }
+
+  .lobby-section { margin-bottom: 22px; }
+  .lobby-section h3 {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 10px;
+  }
+
+  .error {
+    color: #ffd7d2; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    margin-top: 10px; min-height: 16px; text-align: center;
+  }
+
+  .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--brass); margin-right: 6px; animation: pulse 1.2s infinite ease-in-out;
+  }
+  @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  @media (max-width: 360px) {
+    button.rotate { width: 48px; height: 48px; font-size: 19px; }
+  }
+</style>
+</head>
+<body id="body">
+<h1 class="sr-only">Дуэль часов — сетевая игра для двух игроков</h1>
+
+<div class="wrap">
+  <header>
+    <h1>Дуэль часов</h1>
+    <p id="subheader">подключение к серверу</p>
+  </header>
+
+  <div id="game-area"></div>
+</div>
+
+<script>
+// -----------------------------------------------------------------
+// НАСТРОЙКА: адрес backend-сервера.
+// После деплоя на Railway вставь сюда свой адрес вида
+// wss://your-app-name.up.railway.app — или просто впиши его
+// в поле в интерфейсе один раз, оно запомнится в этом браузере.
+// -----------------------------------------------------------------
+var DEFAULT_SERVER_URL = 'wss://clock-duel-server.onrender.com';
+
+var body = document.getElementById('body');
+var gameArea = document.getElementById('game-area');
+var subheader = document.getElementById('subheader');
+
+var ws = null;
+var myColor = null;
+var roomCode = null;
+var timerInterval = null;
+var localHand = 12;
+var isMyTurn = false;
+
+function getSavedServerUrl() {
+  return DEFAULT_SERVER_URL;
+}
+
+function handAngle(hour) { return (hour % 12) * 30; }
+
+function renderClock(hour) {
+  var angle = handAngle(hour);
+  var svg = '<svg id="clock" viewBox="0 0 280 280" role="img" aria-label="Циферблат, стрелка на ' + hour + ' часов">';
+  svg += '<circle class="dial-face" cx="140" cy="140" r="132"/>';
+  for (var i = 1; i <= 12; i++) {
+    var a = (i * 30 - 90) * Math.PI / 180;
+    var x1 = 140 + Math.cos(a) * 118;
+    var y1 = 140 + Math.sin(a) * 118;
+    var x2 = 140 + Math.cos(a) * (i % 3 === 0 ? 100 : 106);
+    var y2 = 140 + Math.sin(a) * (i % 3 === 0 ? 100 : 106);
+    svg += '<line class="' + (i % 3 === 0 ? 'tick-major' : 'tick') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>';
+    var tx = 140 + Math.cos(a) * 84;
+    var ty = 140 + Math.sin(a) * 84;
+    svg += '<text class="num" x="' + tx + '" y="' + (ty + 7) + '" font-size="20" text-anchor="middle">' + i + '</text>';
+  }
+  svg += '<line id="hand-line" class="hand" x1="140" y1="140" x2="140" y2="60" style="transform: rotate(' + angle + 'deg)"/>';
+  svg += '<circle class="pin" cx="140" cy="140" r="8"/>';
+  svg += '</svg>';
+  return svg;
+}
+
+// -----------------------------------------------------------------
+// Экран 1: лобби — подключение к серверу, создание/вход в комнату
+// -----------------------------------------------------------------
+function renderLobby(errorMsg) {
+  body.className = '';
+  subheader.textContent = 'создайте комнату или войдите по коду';
+  gameArea.innerHTML =
+    '<div class="lobby-section">' +
+      '<h3>Новая комната</h3>' +
+      '<button class="big" id="create-btn" style="width:100%">создать комнату</button>' +
+    '</div>' +
+    '<div class="lobby-section">' +
+      '<h3>Есть код от друга</h3>' +
+      '<input class="text-input" id="join-code" placeholder="код комнаты, напр. 4821" inputmode="numeric"/>' +
+      '<button class="big" id="join-btn" style="width:100%">войти в комнату</button>' +
+    '</div>' +
+    '<p class="error">' + (errorMsg || '') + '</p>';
+
+  document.getElementById('create-btn').onclick = function () {
+    connect(function () { send({ type: 'create' }); });
+  };
+  document.getElementById('join-btn').onclick = function () {
+    var code = document.getElementById('join-code').value.trim();
+    if (!code) { renderLobby('Введи код комнаты'); return; }
+    connect(function () { send({ type: 'join', code: code }); });
+  };
+}
+
+function renderWaiting() {
+  body.className = '';
+  subheader.textContent = 'комната ' + roomCode;
+  gameArea.innerHTML =
+    '<div class="overlay">' +
+      '<h3 style="font-family:\'JetBrains Mono\',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin:0 0 6px;">код комнаты</h3>' +
+      '<div class="code-display">' + roomCode + '</div>' +
+      '<p><span class="dot"></span>ждём второго игрока — скинь ему код</p>' +
+    '</div>';
+}
+
+// -----------------------------------------------------------------
+// Экран 2: сам ход
+// -----------------------------------------------------------------
+function renderTurn(payload) {
+  isMyTurn = payload.isYourTurn;
+  localHand = payload.yourHand;
+  var activeColor = payload.currentPlayer;
+  body.className = 'turn-' + activeColor;
+  subheader.textContent = 'раунд ' + payload.round + ' \u00b7 угадай загаданный час';
+
+  gameArea.innerHTML =
+    '<div class="status-row">' +
+      '<span>ход: ' + (activeColor === 'red' ? 'красный' : 'синий') + (isMyTurn ? ' (ты)' : ' (соперник)') + '</span>' +
+      '<span class="timer" id="timer">0:20</span>' +
+    '</div>' +
+    '<div class="clock-shell">' +
+      renderClock(localHand) +
+      '<div class="controls">' +
+        '<button class="rotate" id="left-btn" ' + (isMyTurn ? '' : 'disabled') + ' aria-label="Повернуть стрелку назад на час">\u2190</button>' +
+        '<button class="confirm" id="confirm-btn" ' + (isMyTurn ? '' : 'disabled') + '>подтвердить</button>' +
+        '<button class="rotate" id="right-btn" ' + (isMyTurn ? '' : 'disabled') + ' aria-label="Повернуть стрелку вперёд на час">\u2192</button>' +
+      '</div>' +
+    '</div>';
+
+  if (isMyTurn) {
+    document.getElementById('left-btn').onclick = function () { moveHand(-1); };
+    document.getElementById('right-btn').onclick = function () { moveHand(1); };
+  }
+  document.getElementById('confirm-btn').onclick = function () { confirmTurn(); };
+
+  startCountdown(payload.deadline);
+}
+
+function startCountdown(deadline) {
+  clearInterval(timerInterval);
+  function tick() {
+    var el = document.getElementById('timer');
+    if (!el) { clearInterval(timerInterval); return; }
+    var secondsLeft = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+    el.textContent = '0:' + (secondsLeft < 10 ? '0' : '') + secondsLeft;
+  }
+  tick();
+  timerInterval = setInterval(tick, 250);
+}
+
+function moveHand(delta) {
+  if (!isMyTurn) return;
+  localHand = ((localHand - 1 + delta) % 12 + 12) % 12 + 1;
+  var handEl = document.getElementById('hand-line');
+  if (handEl) { handEl.style.transform = 'rotate(' + handAngle(localHand) + 'deg)'; }
+}
+
+function confirmTurn() {
+  if (!isMyTurn) return;
+  isMyTurn = false;
+  document.getElementById('left-btn') && (document.getElementById('left-btn').disabled = true);
+  document.getElementById('right-btn') && (document.getElementById('right-btn').disabled = true);
+  document.getElementById('confirm-btn').disabled = true;
+  send({ type: 'confirm', hour: localHand });
+}
+
+// -----------------------------------------------------------------
+// Экран 3: результат раунда / партии
+// -----------------------------------------------------------------
+function renderResult(payload) {
+  clearInterval(timerInterval);
+  body.className = '';
+  var yourGuess = payload.guesses[myColor];
+  var oppColor = myColor === 'red' ? 'blue' : 'red';
+  var oppGuess = payload.guesses[oppColor];
+
+  var html = '<div class="overlay">';
+  if (payload.outcome === 'continue') {
+    html += '<span class="pill draw">раунд ' + payload.round + '</span>';
+    html += '<h2>Оба мимо</h2>';
+    html += '<p>Загадан был час ' + payload.secretHour + '. Ты поставил ' + yourGuess + ', соперник — ' + oppGuess + '. Никто не угадал — новый раунд начнётся сам.</p>';
+    html += '<p><span class="dot"></span>следующий раунд...</p>';
+  } else if (payload.outcome === 'draw') {
+    html += '<span class="pill draw">ничья</span>';
+    html += '<h2>Оба угадали</h2>';
+    html += '<p>Загаданный час был ' + payload.secretHour + ', и оба поставили стрелку верно. Партия окончена — ничья.</p>';
+    html += '<button class="big" id="restart-btn">новая партия</button>';
+  } else {
+    var youWon = payload.outcome === myColor;
+    html += '<span class="pill ' + payload.outcome + '">' + (payload.outcome === 'red' ? 'красный' : 'синий') + '</span>';
+    html += '<h2>' + (youWon ? 'Ты выиграл!' : 'Победил соперник') + '</h2>';
+    html += '<p>Загаданный час был ' + payload.secretHour + '. Угадал только ' + (payload.outcome === 'red' ? 'красный' : 'синий') + ' — единственный угадавший побеждает.</p>';
+    html += '<button class="big" id="restart-btn">новая партия</button>';
+  }
+  html += '</div>';
+  gameArea.innerHTML = html;
+
+  var restartBtn = document.getElementById('restart-btn');
+  if (restartBtn) {
+    restartBtn.onclick = function () {
+      restartBtn.disabled = true;
+      restartBtn.textContent = 'ждём соперника...';
+      send({ type: 'restart' });
+    };
+  }
+}
+
+// -----------------------------------------------------------------
+// Сеть: подключение и обработка сообщений сервера
+// -----------------------------------------------------------------
+var myToken = null;
+var intentionalDisconnect = false;
+var reconnectAttemptTimer = null;
+
+function saveSession(code, color, token) {
+  try {
+    localStorage.setItem('clockDuelSession', JSON.stringify({ code: code, color: color, token: token, url: getSavedServerUrl() }));
+  } catch (e) { /* ignore */ }
+}
+function getSavedSession() {
+  try {
+    var raw = localStorage.getItem('clockDuelSession');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function clearSavedSession() {
+  try { localStorage.removeItem('clockDuelSession'); } catch (e) { /* ignore */ }
+}
+
+function send(payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+function openSocket(url, onOpen, onFail) {
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    onFail();
+    return;
+  }
+  ws.onopen = onOpen;
+  ws.onerror = function () { onFail(); };
+  ws.onclose = handleSocketClose;
+  ws.onmessage = function (event) {
+    var msg;
+    try { msg = JSON.parse(event.data); } catch (e) { return; }
+    handleServerMessage(msg);
+  };
+}
+
+function connect(onOpenCallback) {
+  var url = getSavedServerUrl();
+  intentionalDisconnect = false;
+
+  if (ws) { try { ws.close(); } catch (e) {} }
+  openSocket(url, onOpenCallback, function () {
+    renderLobby('Не получилось подключиться к серверу. Попробуй ещё раз.');
+  });
+}
+
+function handleSocketClose() {
+  if (intentionalDisconnect || !roomCode) return;
+
+  // Связь пропала посреди партии — пробуем сами тихо переподключиться,
+  // а не сразу сдаваться. Показываем игроку, что происходит.
+  body.className = '';
+  gameArea.innerHTML = '<div class="overlay"><h2>Связь потеряна</h2><p><span class="dot"></span>пробуем восстановить соединение...</p></div>';
+
+  clearTimeout(reconnectAttemptTimer);
+  reconnectAttemptTimer = setTimeout(attemptRejoin, 1500);
+}
+
+function attemptRejoin() {
+  var session = getSavedSession();
+  if (!session || !session.code || !session.token) { renderLobby(); return; }
+
+  openSocket(session.url, function () {
+    send({ type: 'rejoin', code: session.code, token: session.token });
+  }, function () {
+    reconnectAttemptTimer = setTimeout(attemptRejoin, 2000); // пробуем снова через 2 сек
+  });
+}
+
+function handleServerMessage(msg) {
+  if (msg.type === 'created') {
+    myColor = msg.color;
+    roomCode = msg.code;
+    myToken = msg.token;
+    saveSession(msg.code, msg.color, msg.token);
+    renderWaiting();
+  } else if (msg.type === 'joined') {
+    myColor = msg.color;
+    roomCode = msg.code;
+    myToken = msg.token;
+    saveSession(msg.code, msg.color, msg.token);
+    renderWaiting();
+  } else if (msg.type === 'rejoined') {
+    myColor = msg.color;
+    roomCode = msg.code;
+    renderWaiting();
+    // Если матч уже шёл, следующим сообщением придёт turn_start
+    // и сам перерисует экран поверх этого.
+  } else if (msg.type === 'room_gone') {
+    clearSavedSession();
+    roomCode = null;
+    renderLobby('Партия уже не активна — начни новую');
+  } else if (msg.type === 'opponent_joined') {
+    // ничего не делаем — сейчас придёт turn_start и начнётся игра
+  } else if (msg.type === 'turn_start') {
+    renderTurn(msg);
+  } else if (msg.type === 'round_result') {
+    renderResult(msg);
+  } else if (msg.type === 'opponent_disconnected') {
+    clearInterval(timerInterval);
+    body.className = '';
+    gameArea.innerHTML = '<div class="overlay"><h2>Соперник потерял связь</h2><p><span class="dot"></span>ждём, пока вернётся (до ' + (msg.graceSeconds || 45) + ' сек)...</p></div>';
+  } else if (msg.type === 'opponent_reconnected') {
+    // turn_start придёт следом и обновит экран сам
+  } else if (msg.type === 'opponent_left') {
+    clearInterval(timerInterval);
+    clearSavedSession();
+    body.className = '';
+    gameArea.innerHTML = '<div class="overlay"><h2>Соперник вышел</h2><p>Партия прервана — второй игрок не вернулся вовремя.</p><button class="big" id="lobby-btn">в лобби</button></div>';
+    document.getElementById('lobby-btn').onclick = function () { roomCode = null; renderLobby(); };
+  } else if (msg.type === 'error') {
+    renderLobby(msg.message);
+  }
+}
+
+renderLobby();
+
+// При открытии страницы — если есть сохранённая незавершённая партия,
+// пробуем в неё вернуться автоматически, а не начинать с лобби.
+(function tryAutoRejoinOnLoad() {
+  var session = getSavedSession();
+  if (session && session.code && session.token && session.url) {
+    roomCode = session.code;
+    attemptRejoin();
+  }
+})();
+
+</script>
+</body>
+</html>
